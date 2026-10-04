@@ -76,7 +76,9 @@ export default function AdminBlogsPage() {
             {loading ? (
               <div className="p-12 text-center text-slate-500 font-medium">Loading articles...</div>
             ) : blogs.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">No blog articles found. Click "Write New Article" to create one.</div>
+              <div className="p-12 text-center text-slate-500">
+                No blog articles found. Click &quot;Write New Article&quot; to create one.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
