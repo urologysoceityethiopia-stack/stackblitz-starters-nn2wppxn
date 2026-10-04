@@ -1,0 +1,183 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 174 60% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 174 60% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 174 60% 12%;
+
+    --primary: 174 60% 32%;          /* deep medical teal */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 174 30% 96%;
+    --secondary-foreground: 174 60% 18%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 24 95% 53%;             /* warm accent orange */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 174 60% 32%;
+
+    --radius: 0.6rem;
+
+    --chart-1: 174 60% 32%;
+    --chart-2: 24 95% 53%;
+    --chart-3: 215 80% 45%;
+    --chart-4: 142 70% 38%;
+    --chart-5: 280 60% 50%;
+  }
+
+  .dark {
+    --background: 174 50% 5%;
+    --foreground: 0 0% 96%;
+
+    --card: 174 50% 7%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 174 50% 7%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 174 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 174 30% 14%;
+    --secondary-foreground: 0 0% 96%;
+
+    --muted: 174 20% 14%;
+    --muted-foreground: 215 16% 65%;
+
+    --accent: 24 95% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 174 30% 18%;
+    --input: 174 30% 18%;
+    --ring: 174 60% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .container-tight {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-wide {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .gradient-hero {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(174 60% 92% / 1), transparent),
+      radial-gradient(ellipse 60% 50% at 80% 50%, hsl(24 95% 95% / 1), transparent),
+      linear-gradient(to bottom, hsl(0 0% 100%), hsl(174 30% 99%));
+  }
+
+  .gradient-cta {
+    background: linear-gradient(135deg, hsl(174 60% 32%) 0%, hsl(174 70% 22%) 100%);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(174 60% 32%), hsl(24 95% 53%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    @apply backdrop-blur-md bg-white/80 dark:bg-black/50 border border-white/20;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(0 0% 96%) 0%,
+      hsl(0 0% 99%) 50%,
+      hsl(0 0% 96%) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(174 30% 80%);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(174 30% 60%);
+}
+
+/* Print styles for nutrition plans */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+}

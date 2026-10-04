@@ -1,0 +1,1038 @@
+// ============================================================================
+// NutriMed Ethiopia — Prisma Schema
+// PostgreSQL schema for doctor-led digital nutrition platform.
+// HIPAA-inspired: PHI is segregated, audit logs are append-only.
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  GUEST
+  CLIENT
+  DOCTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  ARCHIVED
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum GoalType {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  DIABETES_CONTROL
+  BLOOD_PRESSURE_CONTROL
+  FERTILITY_OPTIMIZATION
+  PCOS_MANAGEMENT
+  GENERAL_WELLNESS
+  ATHLETIC_PERFORMANCE
+  POSTPARTUM_RECOVERY
+  EXECUTIVE_WELLNESS
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  OCCASIONAL
+  DAILY
+}
+
+enum AlcoholStatus {
+  NEVER
+  OCCASIONAL
+  WEEKLY
+  DAILY
+}
+
+enum FastingPractice {
+  NONE
+  ETHIOPIAN_ORTHODOX
+  MUSLIM
+  INTERMITTENT_16_8
+  INTERMITTENT_18_6
+  OTHER
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProgramType {
+  WEIGHT_LOSS
+  DIABETES
+  HYPERTENSION
+  PCOS
+  FERTILITY
+  MUSCLE_GAIN
+  EXECUTIVE_WELLNESS
+  GENERAL_WELLNESS
+}
+
+enum ProgramTier {
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+  PENDING_PAYMENT
+}
+
+enum AppointmentType {
+  ONLINE
+  IN_PERSON
+  PHONE
+  HOME_VISIT
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum PaymentProvider {
+  CHAPA
+  TELEBIRR
+  CBE
+  STRIPE
+  PAYPAL
+  CASH
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentPurpose {
+  CONSULTATION
+  PROGRAM_PURCHASE
+  SUBSCRIPTION
+  FOLLOW_UP
+  LAB_REVIEW
+  ADDON
+}
+
+enum FileCategory {
+  LAB_REPORT
+  PRESCRIPTION
+  PROFILE_PHOTO
+  PROGRESS_PHOTO_FRONT
+  PROGRESS_PHOTO_SIDE
+  PROGRESS_PHOTO_BACK
+  MEDICAL_RECORD
+  NUTRITION_PLAN
+  INVOICE
+  RECEIPT
+  OTHER
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum FollowUpType {
+  DAY_7
+  DAY_14
+  DAY_30
+  DAY_60
+  DAY_90
+  CUSTOM
+}
+
+enum FollowUpStatus {
+  SCHEDULED
+  DUE
+  COMPLETED
+  OVERDUE
+  SKIPPED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  READ
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  PAYMENT
+  CONSENT
+  ROLE_CHANGE
+}
+
+// ============================================================================
+// CORE IDENTITY
+// ============================================================================
+
+model User {
+  id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email             String?        @unique @db.Citext
+  phone             String?        @unique
+  emailVerified     DateTime?
+  phoneVerified     DateTime?
+  hashedPassword    String?
+  role              UserRole       @default(CLIENT)
+  status            AccountStatus  @default(PENDING)
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+  preferredLocale   String         @default("en")
+  preferredTimezone String         @default("Africa/Addis_Ababa")
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  twoFactorEnabled  Boolean        @default(false)
+  twoFactorSecret   String?
+  marketingOptIn    Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  accounts            OAuthAccount[]
+  sessions            Session[]
+  profile             ClientProfile?
+  doctorProfile       DoctorProfile?
+  assessments         Assessment[]
+  appointments        Appointment[]      @relation("ClientAppointments")
+  doctorAppointments  Appointment[]      @relation("DoctorAppointments")
+  payments            Payment[]
+  subscriptions       Subscription[]
+  uploadedFiles       UploadedFile[]
+  progressEntries     ProgressEntry[]
+  photos              ProgressPhoto[]
+  nutritionPlans      NutritionPlan[]    @relation("ClientPlans")
+  sentMessages        Message[]          @relation("MessageSender")
+  receivedMessages    Message[]          @relation("MessageRecipient")
+  conversationsAsA   Conversation[]     @relation("ConvParticipantA")
+  conversationsAsB   Conversation[]     @relation("ConvParticipantB")
+  followUps           FollowUp[]
+  notifications       Notification[]
+  consents            ConsentRecord[]
+  auditLogs           AuditLog[]
+  blogPosts           BlogPost[]
+  passwordResets      PasswordResetToken[]
+  otpCodes            OtpCode[]
+
+  @@index([role, status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String   @db.Uuid
+  provider          String   // google, facebook, apple
+  providerAccountId String
+  accessToken       String?  @db.Text
+  refreshToken      String?  @db.Text
+  tokenExpiresAt    DateTime?
+  scope             String?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String   @db.Uuid
+  sessionToken String   @unique
+  ipAddress    String?
+  userAgent    String?  @db.Text
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model OtpCode {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String?  @db.Uuid
+  channel   String   // sms | email
+  target    String   // phone or email
+  codeHash  String
+  purpose   String   // login | verify | reset
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([target, purpose])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+// ============================================================================
+// CLIENT & DOCTOR PROFILES
+// ============================================================================
+
+model ClientProfile {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String   @unique @db.Uuid
+  dateOfBirth       DateTime? @db.Date
+  sex               Sex?
+  height            Decimal?  @db.Decimal(5, 2) // cm
+  weight            Decimal?  @db.Decimal(5, 2) // kg
+  waistCircumference Decimal? @db.Decimal(5, 2)
+  hipCircumference  Decimal?  @db.Decimal(5, 2)
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  restingHeartRate  Int?
+  country           String?
+  city              String?
+  occupation        String?
+  employer          String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  referralSource    String?
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("client_profiles")
+}
+
+model DoctorProfile {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String   @unique @db.Uuid
+  medicalLicense  String?  @unique
+  specialization  String?
+  yearsOfExperience Int    @default(0)
+  bio             String?  @db.Text
+  shortBio        String?
+  languages       String[] @default(["en", "am"])
+  consultationFee Decimal? @db.Decimal(10, 2)
+  currency        String   @default("ETB")
+  isAcceptingNewClients Boolean @default(true)
+  signatureUrl    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("doctor_profiles")
+}
+
+// ============================================================================
+// MEDICAL HISTORY
+// ============================================================================
+
+model MedicalHistory {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String   @db.Uuid
+  condition   String
+  diagnosedAt DateTime? @db.Date
+  status      String   @default("active") // active | resolved | chronic
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("medical_histories")
+}
+
+model Surgery {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  date      DateTime? @db.Date
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("surgeries")
+}
+
+model Medication {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String   @db.Uuid
+  name          String
+  dosage        String?
+  frequency     String?
+  startedAt     DateTime? @db.Date
+  stoppedAt     DateTime? @db.Date
+  prescribedBy  String?
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@map("medications")
+}
+
+model Allergy {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @db.Uuid
+  allergen  String
+  severity  String   @default("mild") // mild | moderate | severe
+  reaction  String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("allergies")
+}
+
+model FamilyHistory {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @db.Uuid
+  relation  String   // mother, father, sibling, etc.
+  condition String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("family_histories")
+}
+
+// ============================================================================
+// ASSESSMENT (Multi-Step Wizard)
+// ============================================================================
+
+model Assessment {
+  id                String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String           @db.Uuid
+  status            AssessmentStatus @default(DRAFT)
+  goalType          GoalType?
+  activityLevel     ActivityLevel?
+  smokingStatus     SmokingStatus?
+  alcoholStatus     AlcoholStatus?
+  fastingPractice   FastingPractice?
+  sleepHours        Decimal?         @db.Decimal(4, 2)
+  stressLevel       Int?             // 1-10
+  exerciseFrequency String?
+  dietaryPreference String?          // omnivore, vegetarian, vegan, pescatarian
+  foodAllergies     String[]
+  dislikedFoods     String[]
+  favoriteFoods     String[]
+  cookingSkill      String?
+  budgetPerWeek     Decimal?         @db.Decimal(10, 2)
+  budgetCurrency    String           @default("ETB")
+  desiredWeight     Decimal?         @db.Decimal(5, 2)
+  timelineWeeks     Int?
+  motivation        String?          @db.Text
+  previousAttempts  String?          @db.Text
+  consentAccepted   Boolean          @default(false)
+  consentAt         DateTime?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedBy        String?          @db.Uuid
+  reviewerNotes     String?          @db.Text
+  rawPayload        Json?            // full form data for audit
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, submittedAt])
+  @@map("assessments")
+}
+
+// ============================================================================
+// FILE UPLOADS
+// ============================================================================
+
+model UploadedFile {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String       @db.Uuid
+  category      FileCategory
+  originalName  String
+  storageKey    String       // S3 key or local path
+  storageProvider String     @default("local")
+  mimeType      String
+  size          Int          // bytes
+  checksum      String?      // sha256
+  description   String?
+  testType      String?      // for lab reports: CBC, HbA1c, etc.
+  testDate      DateTime?    @db.Date
+  labName       String?
+  isEncrypted   Boolean      @default(true)
+  metadata      Json?
+  uploadedAt    DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, category])
+  @@index([uploadedAt])
+  @@map("uploaded_files")
+}
+
+// ============================================================================
+// APPOINTMENTS
+// ============================================================================
+
+model Appointment {
+  id            String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clientId      String            @db.Uuid
+  doctorId      String            @db.Uuid
+  type          AppointmentType
+  status        AppointmentStatus @default(SCHEDULED)
+  scheduledAt   DateTime
+  durationMin   Int               @default(30)
+  timezone      String            @default("Africa/Addis_Ababa")
+  meetingUrl    String?
+  meetingId     String?
+  meetingPassword String?
+  location      String?
+  reason        String?           @db.Text
+  clientNotes   String?           @db.Text
+  doctorNotes   String?           @db.Text
+  cancellationReason String?
+  reminderSent  Boolean           @default(false)
+  paid          Boolean           @default(false)
+  paymentId     String?           @db.Uuid
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  client  User      @relation("ClientAppointments", fields: [clientId], references: [id])
+  doctor  User      @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  payment Payment?  @relation(fields: [paymentId], references: [id])
+
+  @@index([clientId, scheduledAt])
+  @@index([doctorId, scheduledAt])
+  @@index([status, scheduledAt])
+  @@map("appointments")
+}
+
+model DoctorAvailability {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  doctorId  String   @db.Uuid
+  dayOfWeek Int      // 0-6 (Sun-Sat)
+  startTime String   // "09:00"
+  endTime   String   // "17:00"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([doctorId, dayOfWeek])
+  @@map("doctor_availability")
+}
+
+// ============================================================================
+// PAYMENTS & SUBSCRIPTIONS
+// ============================================================================
+
+model Payment {
+  id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String         @db.Uuid
+  provider          PaymentProvider
+  status            PaymentStatus  @default(PENDING)
+  purpose           PaymentPurpose
+  amount            Decimal        @db.Decimal(12, 2)
+  currency          String         @default("ETB")
+  providerRef       String?        // Chapa tx_ref, Telebirr prepay_id
+  providerChargeId  String?        // gateway transaction id
+  checkoutUrl       String?        @db.Text
+  description       String?
+  metadata          Json?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  refundedAt        DateTime?
+  refundReason      String?
+  receiptNumber     String?        @unique
+  invoiceNumber     String?
+  programType       ProgramType?
+  programTier       ProgramTier?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id])
+  appointments Appointment[]
+
+  @@index([userId, status])
+  @@index([provider, status])
+  @@index([providerRef])
+  @@map("payments")
+}
+
+model Subscription {
+  id                String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String             @db.Uuid
+  programType       ProgramType
+  tier              ProgramTier
+  status            SubscriptionStatus @default(PENDING_PAYMENT)
+  startDate         DateTime
+  endDate           DateTime?
+  nextBillingDate   DateTime?
+  amount            Decimal            @db.Decimal(12, 2)
+  currency          String             @default("ETB")
+  autoRenew         Boolean            @default(false)
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([nextBillingDate])
+  @@map("subscriptions")
+}
+
+// ============================================================================
+// NUTRITION PLANS
+// ============================================================================
+
+model NutritionPlan {
+  id                String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clientId          String      @db.Uuid
+  doctorId          String      @db.Uuid
+  title             String
+  programType       ProgramType
+  summary           String?     @db.Text
+  goals             String[]
+  calorieTarget     Int?
+  proteinTarget     Int?        // grams
+  carbsTarget       Int?
+  fatTarget         Int?
+  fiberTarget       Int?
+  waterTarget       Decimal?    @db.Decimal(4, 2) // liters
+  mealTiming        Json?       // {breakfast: "07:00", lunch: "12:30"...}
+  fastingVersion    Json?       // Orthodox fasting variant
+  ethiopianSubs     Json?       // Injera, barley, etc. substitutions
+  recommendations   String?     @db.Text
+  lifestyleNotes    String?     @db.Text
+  pdfUrl            String?
+  isActive          Boolean     @default(true)
+  sentAt            DateTime?
+  viewedAt          DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  client User @relation("ClientPlans", fields: [clientId], references: [id], onDelete: Cascade)
+  meals Meal[]
+
+  @@index([clientId, isActive])
+  @@index([doctorId])
+  @@map("nutrition_plans")
+}
+
+model Meal {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  planId        String   @db.Uuid
+  name          String
+  category      String   // breakfast | lunch | dinner | snack
+  dayOfWeek     Int?     // 0-6 for weekly plans
+  description   String?  @db.Text
+  ingredients   Json?    // [{name, qty, unit, calories, protein, carbs, fat}]
+  instructions  String?  @db.Text
+  calories      Int?
+  protein       Int?
+  carbs         Int?
+  fat           Int?
+  imageUrl      String?
+  isFasting     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  plan NutritionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, dayOfWeek])
+  @@map("meals")
+}
+
+model PlanTemplate {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String
+  programType   ProgramType
+  description   String?     @db.Text
+  template      Json        // full plan structure as JSON
+  isActive      Boolean     @default(true)
+  createdBy     String?     @db.Uuid
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([programType, isActive])
+  @@map("plan_templates")
+}
+
+// ============================================================================
+// PROGRESS TRACKING
+// ============================================================================
+
+model ProgressEntry {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String   @db.Uuid
+  recordedAt      DateTime @default(now())
+  weight          Decimal? @db.Decimal(5, 2)
+  waist           Decimal? @db.Decimal(5, 2)
+  hip             Decimal? @db.Decimal(5, 2)
+  bodyFatPct      Decimal? @db.Decimal(4, 2)
+  muscleMass      Decimal? @db.Decimal(5, 2)
+  bmi             Decimal? @db.Decimal(4, 2)
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  bloodGlucose    Decimal? @db.Decimal(5, 2)
+  bloodGlucoseFasting Boolean? @default(true)
+  heartRate       Int?
+  steps           Int?
+  sleepHours      Decimal? @db.Decimal(4, 2)
+  waterIntake     Decimal? @db.Decimal(4, 2)
+  mood            Int?     // 1-5
+  energyLevel     Int?     // 1-5
+  notes           String?  @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+  @@map("progress_entries")
+}
+
+model ProgressPhoto {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String   @db.Uuid
+  viewAngle   String   // front | side | back
+  fileId      String?  @db.Uuid
+  url         String   // cached/preview url
+  takenAt     DateTime
+  weight      Decimal? @db.Decimal(5, 2)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, takenAt])
+  @@map("progress_photos")
+}
+
+// ============================================================================
+// MESSAGING
+// ============================================================================
+
+model Conversation {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  participantA  String   @db.Uuid
+  participantB  String   @db.Uuid
+  lastMessageAt DateTime @default(now())
+  unreadCountA  Int      @default(0)
+  unreadCountB  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  a User @relation("ConvParticipantA", fields: [participantA], references: [id])
+  b User @relation("ConvParticipantB", fields: [participantB], references: [id])
+  messages Message[]
+
+  @@unique([participantA, participantB])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversationId String          @db.Uuid
+  senderId       String          @db.Uuid
+  recipientId    String          @db.Uuid
+  direction      MessageDirection
+  body           String          @db.Text
+  status         MessageStatus   @default(SENT)
+  attachments    String[]        // fileIds
+  readAt         DateTime?
+  createdAt      DateTime        @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+  recipient    User         @relation("MessageRecipient", fields: [recipientId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([recipientId, status])
+  @@map("messages")
+}
+
+// ============================================================================
+// FOLLOW-UPS
+// ============================================================================
+
+model FollowUp {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String        @db.Uuid
+  type        FollowUpType
+  status      FollowUpStatus @default(SCHEDULED)
+  dueAt       DateTime
+  completedAt DateTime?
+  clientReport String?      @db.Text
+  doctorResponse String?    @db.Text
+  questions   Json?         // [{question, answer}]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([dueAt, status])
+  @@map("follow_ups")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id        String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String              @db.Uuid
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  type      String              // appointment_reminder, plan_ready, payment_success, etc.
+  title     String
+  body      String              @db.Text
+  data      Json?
+  readAt    DateTime?
+  sentAt    DateTime?
+  failedAt  DateTime?
+  errorMsg  String?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// CONSENT & COMPLIANCE
+// ============================================================================
+
+model ConsentRecord {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String   @db.Uuid
+  consentType String   // terms, privacy, telehealth, marketing, data_processing
+  version     String
+  accepted    Boolean
+  ipAddress   String?
+  userAgent   String?  @db.Text
+  acceptedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consentType])
+  @@map("consent_records")
+}
+
+model AuditLog {
+  id         String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  entity     String      // User, Assessment, Payment, etc.
+  entityId   String?
+  changes    Json?       // before/after
+  ipAddress  String?
+  userAgent  String?     @db.Text
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// BLOG / CONTENT
+// ============================================================================
+
+model BlogCategory {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  displayOrder Int       @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  posts BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  slug            String     @unique
+  title           String
+  excerpt         String?    @db.Text
+  body            String     @db.Text
+  coverImageUrl   String?
+  authorId        String     @db.Uuid
+  categoryId      String?    @db.Uuid
+  status          BlogStatus @default(DRAFT)
+  tags            String[]
+  metaTitle       String?
+  metaDescription String?    @db.Text
+  readingTimeMin  Int        @default(5)
+  viewCount       Int        @default(0)
+  publishedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  author   User          @relation(fields: [authorId], references: [id])
+  category BlogCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@map("blog_posts")
+}
+
+// ============================================================================
+// PROGRAMS / PACKAGES (Catalog)
+// ============================================================================
+
+model Program {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  type          ProgramType @unique
+  name          String
+  tagline       String?
+  description   String      @db.Text
+  benefits      String[]
+  targetAudience String[]   // ["adults", "women", "diabetics"]
+  durationWeeks Int?
+  imageUrl      String?
+  iconKey       String?     // lucide icon name
+  isActive      Boolean     @default(true)
+  displayOrder  Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  pricing ProgramPricing[]
+
+  @@map("programs")
+}
+
+model ProgramPricing {
+  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  programId   String      @db.Uuid
+  tier        ProgramTier
+  price       Decimal     @db.Decimal(12, 2)
+  currency    String      @default("ETB")
+  features    String[]
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, tier])
+  @@map("program_pricing")
+}
+
+// ============================================================================
+// ANALYTICS / EVENTS (optional)
+// ============================================================================
+
+model AnalyticsEvent {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId     String?  @db.Uuid
+  sessionId  String?
+  event      String
+  properties Json?
+  pageUrl    String?
+  referrer   String?
+  userAgent  String?  @db.Text
+  ipAddress  String?
+  country    String?
+  createdAt  DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics_events")
+}
