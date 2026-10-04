@@ -12,7 +12,6 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Define the structure of a Review object for TypeScript
 interface Review {
   id: string;
   status?: string;
@@ -29,7 +28,7 @@ interface Review {
   rating?: number;
   date?: string;
   createdAt?: { seconds: number };
-  [key: string]: any; // Allows any other fields passed from Firestore
+  [key: string]: any;
 }
 
 export default function ReviewApprovalPage() {
@@ -37,7 +36,6 @@ export default function ReviewApprovalPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Fetch reviews from Firebase on load
   useEffect(() => {
     async function fetchReviews() {
       try {
@@ -47,7 +45,6 @@ export default function ReviewApprovalPage() {
           ...doc.data()
         }));
         
-        // Only show reviews that haven't been approved yet
         const pendingReviews = fetchedReviews.filter(rev => rev.status !== "approved");
         setReviews(pendingReviews);
       } catch (error) {
@@ -97,7 +94,6 @@ export default function ReviewApprovalPage() {
   return (
     <div className="p-6 lg:p-8 bg-slate-50 min-h-screen font-sans text-slate-900">
       
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
@@ -111,7 +107,6 @@ export default function ReviewApprovalPage() {
           <p className="text-slate-500 mt-2">Manage and moderate patient testimonials before they appear on the homepage.</p>
         </div>
 
-        {/* Search Bar */}
         <div className="relative">
           <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input 
@@ -124,17 +119,14 @@ export default function ReviewApprovalPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         
-        {/* Table Header */}
         <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-slate-100 bg-slate-50/50 text-sm font-semibold text-slate-500 uppercase tracking-wider">
           <div className="col-span-3">Patient Details</div>
           <div className="col-span-6">Review Content</div>
           <div className="col-span-3 text-right">Actions</div>
         </div>
 
-        {/* Reviews List */}
         <div className="divide-y divide-slate-100">
           {loading ? (
             <div className="p-12 flex flex-col items-center justify-center text-slate-500">
@@ -163,27 +155,25 @@ export default function ReviewApprovalPage() {
               return (
                 <div key={review.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-6 items-start hover:bg-slate-50/50 transition-colors">
                   
-                  {/* Patient Info */}
                   <div className="col-span-1 md:col-span-3">
                     <p className="font-bold text-slate-900">{name}</p>
                     <p className="text-sm text-teal-700 font-medium mt-1">{condition}</p>
                     <p className="text-xs text-slate-400 mt-2">{displayDate}</p>
                   </div>
 
-                  {/* Review Content */}
                   <div className="col-span-1 md:col-span-6">
                     <div className="flex gap-1 mb-2">
                       {[...Array(review.rating || 5)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-orange-500 text-orange-500" />
                       ))}
                     </div>
-                    <h4 className="font-bold text-slate-800 text-lg mb-1">"{result}"</h4>
+                    {/* Fixed quotes below */}
+                    <h4 className="font-bold text-slate-800 text-lg mb-1">&quot;{result}&quot;</h4>
                     <p className="text-slate-600 text-sm italic leading-relaxed">
-                      "{quote}"
+                      &quot;{quote}&quot;
                     </p>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="col-span-1 md:col-span-3 flex items-center justify-start md:justify-end gap-3 mt-4 md:mt-0">
                     <button 
                       onClick={() => handleReject(review.id)}
